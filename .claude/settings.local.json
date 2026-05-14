@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"d:\\\\Sudeep Aryan\\\\Final-Unimind\\\\unimind-react\" -Recurse -Directory)",
+      "Bash(Select-Object -First 30)",
+      "Bash(Get-ChildItem -Path \"d:\\\\Sudeep Aryan\\\\Final-Unimind\\\\unimind-react\" -Force)",
+      "Bash(Select-Object Name, FullName, PSIsContainer)"
+    ]
+  }
+}

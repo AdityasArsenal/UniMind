@@ -16,7 +16,7 @@ function WebSceneHost({ onReady }) {
 }
 
 // ---------- Top brand bar ----------
-function TopBar({ phase, simRunning }) {
+function TopBar({ phase, simRunning, onCommunity }) {
   return (
     <div className="absolute top-0 inset-x-0 z-30 px-10 pt-7 flex items-center justify-between pointer-events-none">
       <div className="flex items-center gap-3">
@@ -30,7 +30,7 @@ function TopBar({ phase, simRunning }) {
         <div className="text-white text-[14px] tracking-[0.18em] font-medium">UNIMIND</div>
         <div className="text-white/30 text-[12px] tracking-[0.18em]">/ AGENTIC WEB</div>
       </div>
-      <div className="flex items-center gap-6 text-[11px] mono text-white/45 tracking-wider">
+      <div className="flex items-center gap-5 text-[11px] mono text-white/45 tracking-wider pointer-events-auto">
         <span className="flex items-center gap-2">
           <span className="relative inline-flex">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
@@ -41,6 +41,21 @@ function TopBar({ phase, simRunning }) {
         <span className="hidden md:inline opacity-80">
           {simRunning ? `RUNNING SIMULATION · PHASE 0${phase}/04` : 'AGENTS SYNCED'}
         </span>
+        <motion.button
+          onClick={onCommunity}
+          whileHover={{ scale: 1.06 }}
+          whileTap={{ scale: 0.96 }}
+          className="flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] tracking-[0.22em] uppercase transition-all"
+          style={{
+            background: 'linear-gradient(135deg, rgba(0,209,255,0.12), rgba(123,97,255,0.18))',
+            border: '1px solid rgba(123,97,255,0.38)',
+            color: 'rgba(255,255,255,0.8)',
+          }}
+        >
+          <span style={{ fontSize: 12 }}>◎</span>
+          <span>Community</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" style={{ boxShadow: '0 0 6px #34d399' }} />
+        </motion.button>
       </div>
     </div>
   );
@@ -83,12 +98,16 @@ function LiveCounter({ from, to, duration, prefix = '', suffix = '' }) {
 }
 
 // ---------- Left panel ----------
-function LeftPanel({ timeframe }) {
+function LeftPanel({ timeframe, overrideAgents }) {
   const numbers = useMemo(() => {
     if (timeframe==='past') return { agents:1129, skills:7344, sims:2680 };
     if (timeframe==='this') return { agents:1763, skills:11890, sims:5102 };
     return { agents:2847, skills:19422, sims:8210 };
   }, [timeframe]);
+
+  const display = overrideAgents != null
+    ? { agents: overrideAgents, skills: Math.round(overrideAgents * 6.8), sims: Math.round(overrideAgents * 2.88) }
+    : numbers;
 
   return (
     <motion.div
@@ -119,9 +138,9 @@ function LeftPanel({ timeframe }) {
         </div>
         <div className="h-px my-5" style={{ background:'linear-gradient(90deg,transparent,rgba(255,255,255,0.18),transparent)' }} />
         <div className="space-y-4">
-          <StatRow label="Active Agents"    value={numbers.agents} tint="#4FC3F7" sub="connected"  />
-          <StatRow label="Shared Skills"    value={numbers.skills} tint="#B388FF" sub="threads"    />
-          <StatRow label="Simulations Run"  value={numbers.sims}   tint="#FFD54F" sub="lifetimes"  />
+          <StatRow label="Active Agents"    value={display.agents} tint="#4FC3F7" sub="connected"  />
+          <StatRow label="Shared Skills"    value={display.skills} tint="#B388FF" sub="threads"    />
+          <StatRow label="Simulations Run"  value={display.sims}   tint="#FFD54F" sub="lifetimes"  />
         </div>
         <div className="mt-6 flex items-center gap-2 text-[10px] tracking-[0.22em] text-white/35 uppercase">
           <span className="w-1 h-1 rounded-full bg-white/50" />
@@ -239,6 +258,196 @@ function GrowthTimeline({ value, onChange }) {
             </button>
           );
         })}
+      </div>
+    </motion.div>
+  );
+}
+
+// ---------- Timeline growth data ----------
+const GROWTH_MILESTONES = [
+  { day: 0,   nodes: 5,    date: 'Feb 1',  label: 'Genesis' },
+  { day: 14,  nodes: 12,   date: 'Feb 15', label: null },
+  { day: 28,  nodes: 50,   date: 'Mar 1',  label: '50 agents' },
+  { day: 42,  nodes: 144,  date: 'Mar 15', label: null },
+  { day: 59,  nodes: 380,  date: 'Apr 1',  label: '380 agents' },
+  { day: 73,  nodes: 820,  date: 'Apr 15', label: null },
+  { day: 89,  nodes: 1129, date: 'May 1',  label: '1K agents' },
+  { day: 95,  nodes: 1763, date: 'May 7',  label: null },
+  { day: 102, nodes: 2847, date: 'May 14', label: 'Today' },
+];
+const TOTAL_DAYS = 102;
+
+function getNodeCountForDay(day) {
+  const m = GROWTH_MILESTONES;
+  for (let i = 0; i < m.length - 1; i++) {
+    if (day >= m[i].day && day <= m[i + 1].day) {
+      const t = (day - m[i].day) / (m[i + 1].day - m[i].day);
+      return Math.round(m[i].nodes + (m[i + 1].nodes - m[i].nodes) * t);
+    }
+  }
+  return 2847;
+}
+
+const MONTH_MARKS = [
+  { day: 0, label: 'Feb' },
+  { day: 28, label: 'Mar' },
+  { day: 59, label: 'Apr' },
+  { day: 89, label: 'May' },
+];
+
+// ---------- Timeline Scrubber ----------
+function TimelineScrubber({ day, onChange, visible }) {
+  const trackRef = useRef(null);
+  const [dragging, setDragging] = useState(false);
+  const nodeCount = getNodeCountForDay(day);
+
+  function getDateLabel(d) {
+    const m = GROWTH_MILESTONES;
+    for (let i = 0; i < m.length - 1; i++) {
+      if (d >= m[i].day && d <= m[i + 1].day) {
+        const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+        // Map day to actual date
+        const startDate = new Date(2026, 1, 1); // Feb 1
+        const cur = new Date(startDate.getTime() + d * 86400000);
+        return `${months[cur.getMonth()]} ${cur.getDate()}`;
+      }
+    }
+    return 'May 14';
+  }
+
+  function dayFromEvent(e) {
+    if (!trackRef.current) return day;
+    const rect = trackRef.current.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    return Math.round(pct * TOTAL_DAYS);
+  }
+
+  function onPointerDown(e) {
+    e.preventDefault();
+    setDragging(true);
+    onChange(dayFromEvent(e));
+  }
+
+  useEffect(() => {
+    if (!dragging) return;
+    function onMove(e) { onChange(dayFromEvent(e)); }
+    function onUp() { setDragging(false); }
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    window.addEventListener('touchmove', onMove, { passive: false });
+    window.addEventListener('touchend', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onUp);
+    };
+  }, [dragging]);
+
+  const pct = day / TOTAL_DAYS;
+  const dateLabel = getDateLabel(day);
+  const isToday = day >= TOTAL_DAYS - 1;
+
+  if (!visible) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 1.0, delay: 2.4, ease: [0.22, 1, 0.36, 1] }}
+      className="absolute bottom-20 left-1/2 -translate-x-1/2 z-20 pointer-events-auto"
+      style={{ width: 560 }}
+    >
+      {/* Header row */}
+      <div className="flex items-center justify-between mb-3 px-1">
+        <div className="text-[9px] tracking-[0.3em] text-white/35 uppercase">Network Growth Timeline</div>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] mono" style={{ color: '#4FC3F7' }}>
+            {nodeCount.toLocaleString()} agents
+          </span>
+          <span className="text-[9px] mono text-white/30">·</span>
+          <span className="text-[10px] mono text-white/45">{dateLabel}</span>
+          {isToday && (
+            <span className="text-[8px] mono px-1.5 py-0.5 rounded-full"
+              style={{ background: 'rgba(52,211,153,0.15)', color: '#34d399', border: '1px solid rgba(52,211,153,0.3)' }}>
+              LIVE
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Track */}
+      <div
+        ref={trackRef}
+        className="relative h-10 cursor-pointer select-none"
+        onMouseDown={onPointerDown}
+        onTouchStart={onPointerDown}
+      >
+        {/* Background track */}
+        <div className="absolute inset-y-[17px] inset-x-0 h-[6px] rounded-full"
+          style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }} />
+
+        {/* Filled portion */}
+        <div className="absolute inset-y-[17px] left-0 h-[6px] rounded-full"
+          style={{
+            width: `${pct * 100}%`,
+            background: 'linear-gradient(90deg, #00D1FF, #7B61FF, #FF5FB6)',
+            boxShadow: '0 0 12px rgba(123,97,255,0.5)',
+          }} />
+
+        {/* Month markers */}
+        {MONTH_MARKS.map(m => (
+          <div key={m.label}
+            className="absolute flex flex-col items-center"
+            style={{ left: `${(m.day / TOTAL_DAYS) * 100}%`, top: 0 }}>
+            <div className="w-px h-2 mt-[14px]" style={{ background: 'rgba(255,255,255,0.18)' }} />
+            <span className="text-[8px] mono text-white/25 mt-1">{m.label}</span>
+          </div>
+        ))}
+
+        {/* Milestone dots */}
+        {GROWTH_MILESTONES.filter(m => m.label).map(m => (
+          <div key={m.day}
+            className="absolute flex flex-col items-center"
+            style={{ left: `${(m.day / TOTAL_DAYS) * 100}%`, top: '17px', transform: 'translate(-50%, 0)' }}>
+            <div
+              className="w-2 h-2 rounded-full"
+              style={{
+                background: day >= m.day ? '#7B61FF' : 'rgba(255,255,255,0.15)',
+                boxShadow: day >= m.day ? '0 0 8px rgba(123,97,255,0.8)' : 'none',
+                border: '1px solid rgba(255,255,255,0.25)',
+                marginTop: '-1px',
+                zIndex: 10,
+              }}
+            />
+          </div>
+        ))}
+
+        {/* Thumb */}
+        <div
+          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 z-10"
+          style={{ left: `${pct * 100}%` }}
+        >
+          <div
+            className="w-5 h-5 rounded-full flex items-center justify-center"
+            style={{
+              background: 'linear-gradient(135deg, #00D1FF, #7B61FF)',
+              boxShadow: `0 0 ${dragging ? 20 : 12}px rgba(123,97,255,0.8), 0 0 4px rgba(0,209,255,0.6)`,
+              border: '2px solid rgba(255,255,255,0.9)',
+              transform: dragging ? 'scale(1.25)' : 'scale(1)',
+              transition: 'transform 0.15s, box-shadow 0.15s',
+            }}
+          >
+            <div className="w-1.5 h-1.5 rounded-full bg-white" />
+          </div>
+        </div>
+      </div>
+
+      {/* Bottom date labels */}
+      <div className="flex justify-between mt-1 px-0">
+        <span className="text-[8px] mono text-white/25">Feb 1, 2026</span>
+        <span className="text-[8px] mono text-white/25">May 14, 2026</span>
       </div>
     </motion.div>
   );
@@ -907,7 +1116,7 @@ function DustOverlay() {
 }
 
 // ---------- Main ----------
-export default function AgenticWebPage({ userName = 'SUDEEP' }) {
+export default function AgenticWebPage({ userName = 'SUDEEP', onNavigateCommunity }) {
   const [scene, setScene] = useState(null);
   const [timeframe, setTimeframe] = useState('all');
   const [lbOpen, setLbOpen] = useState(false);
@@ -925,6 +1134,11 @@ export default function AgenticWebPage({ userName = 'SUDEEP' }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedNode, setSelectedNode] = useState(null);
   const [filters, setFilters] = useState({ 0:true, 1:true, 2:true, 3:true });
+
+  // Timeline scrubber state
+  const [timelineDay, setTimelineDay] = useState(TOTAL_DAYS);
+  const timelineNodeCount = getNodeCountForDay(timelineDay);
+  const isTimelineLive = timelineDay >= TOTAL_DAYS - 1;
 
   const simRunning = phase>0 && phase<=4;
 
@@ -967,6 +1181,12 @@ export default function AgenticWebPage({ userName = 'SUDEEP' }) {
     const t2 = setTimeout(() => setHintVisible(true), 3800);
     return () => { clearTimeout(t1); clearTimeout(t2); };
   }, []);
+
+  // Sync timeline day → scene node visibility
+  useEffect(() => {
+    if (!scene) return;
+    scene.setVisibleNodeCount(timelineNodeCount);
+  }, [scene, timelineNodeCount]);
 
   // Core screen position polling
   useEffect(() => {
@@ -1041,7 +1261,7 @@ export default function AgenticWebPage({ userName = 'SUDEEP' }) {
       <WebSceneHost onReady={setScene} />
       <DustOverlay />
 
-      <TopBar phase={phase} simRunning={simRunning} />
+      <TopBar phase={phase} simRunning={simRunning} onCommunity={onNavigateCommunity} />
 
       <CoreLabel scenePos={coreScreen} dim={coreLabelDim} hidden={coreLabelHidden} />
       <CoreHover hovered={coreHovered && !simRunning} scenePos={coreScreen} mousePos={mousePos} />
@@ -1054,12 +1274,13 @@ export default function AgenticWebPage({ userName = 'SUDEEP' }) {
       {/* Main UI panels */}
       {showUI && (
         <>
-          <LeftPanel timeframe={timeframe} />
+          <LeftPanel timeframe={timeframe} overrideAgents={isTimelineLive ? null : timelineNodeCount} />
           <GrowthTimeline value={timeframe} onChange={handleTimeframeChange} />
           {graphData && (
             <NodeFilterPanel filters={filters} onChange={handleFilterChange} />
           )}
           <LeaderboardButton onOpen={() => setLbOpen(true)} />
+          <TimelineScrubber day={timelineDay} onChange={setTimelineDay} visible />
         </>
       )}
 
@@ -1114,9 +1335,9 @@ export default function AgenticWebPage({ userName = 'SUDEEP' }) {
       <div className="absolute left-10 bottom-8 z-20 flex items-center gap-3 text-[10px] mono text-white/30 tracking-[0.25em] uppercase pointer-events-none">
         <span>◎ webgl · 60fps</span>
         <span className="opacity-50">|</span>
-        <span>2,847 nodes</span>
+        <span>{timelineNodeCount.toLocaleString()} nodes</span>
         <span className="opacity-50">|</span>
-        <span>19,422 threads</span>
+        <span>{Math.round(timelineNodeCount * 6.8).toLocaleString()} threads</span>
       </div>
     </div>
   );

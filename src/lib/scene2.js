@@ -406,9 +406,17 @@ export function createUniMindWeb(container) {
     connEdgeMap.set(Math.min(i, j) * 10000 + Math.max(i, j), c);
   }
 
+  // Node reveal order for timeline scrubbing: inner nodes (closer to center) joined first
+  const nodeRevealOrder = Array.from({ length: TOTAL_NODES }, (_, i) => i)
+    .sort((a, b) => nodeBasePos[a].length() - nodeBasePos[b].length());
+
   // ---------- Filter state ----------
   // Indexed by nodeKind (0=New, 1=Community, 2=Expert, 3=User)
   const filterMask = [true, true, true, true];
+
+  // ---------- Timeline visibility state ----------
+  let timelineCutoff = TOTAL_NODES;
+  const timelineVisibleSet = new Set(Array.from({ length: TOTAL_NODES }, (_, i) => i));
 
   // Per-connection: distance from origin for signal triggering
   const connTriggerDist = new Float32Array(connections.length);
@@ -494,6 +502,9 @@ export function createUniMindWeb(container) {
   lineGeom.setAttribute("aReveal", new THREE.BufferAttribute(lineReveal, 1));
   lineGeom.setAttribute("aIsPath", new THREE.BufferAttribute(linePathArr, 1));
 
+  const lineHideArr = new Float32Array(connections.length * SEGS * 2);
+  lineGeom.setAttribute('aHideEdge', new THREE.BufferAttribute(lineHideArr, 1));
+
   // ShaderMaterial for lines — supports per-connection wave reveal + signal glow
   const lineShaderMat = new THREE.ShaderMaterial({
     uniforms: {
@@ -506,13 +517,16 @@ export function createUniMindWeb(container) {
     vertexShader: `
       attribute float aReveal;
       attribute float aIsPath;
+      attribute float aHideEdge;
       varying vec3 vColor;
       varying float vReveal;
       varying float vIsPath;
+      varying float vHideEdge;
       void main() {
-        vColor  = color;
-        vReveal = aReveal;
-        vIsPath = aIsPath;
+        vColor    = color;
+        vReveal   = aReveal;
+        vIsPath   = aIsPath;
+        vHideEdge = aHideEdge;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }
     `,
@@ -520,12 +534,15 @@ export function createUniMindWeb(container) {
       varying vec3 vColor;
       varying float vReveal;
       varying float vIsPath;
+      varying float vHideEdge;
       uniform float uLineOpacity;
       uniform float uWebRevealT;
       uniform float uSignalT;
       uniform float uSignalMode;
       uniform float uPathMode;
       void main() {
+        if (vHideEdge > 0.5) discard;
+
         // Entry reveal wave: inner connections appear first
         float revealFactor = clamp((uWebRevealT - vReveal*0.5) / 0.5, 0.0, 1.0);
         revealFactor = pow(revealFactor, 0.6);
@@ -1161,7 +1178,7 @@ export function createUniMindWeb(container) {
     const sizeArr = nodeGeom.attributes.aSize.array;
     for (let i = 0; i < NODES; i++) {
       const rt = clamp((webRevealT - nodeDistNorm[i] * 0.5) / 0.5, 0, 1);
-      sizeArr[i] = filterMask[nodeKind[i]] ? nodeSize[i] * easeOut(rt) : 0;
+      sizeArr[i] = (filterMask[nodeKind[i]] && timelineVisibleSet.has(i)) ? nodeSize[i] * easeOut(rt) : 0;
     }
 
     // Camera entry path (only while OrbitControls is still disabled)
@@ -1625,6 +1642,23 @@ export function createUniMindWeb(container) {
 
     setFilters(mask) {
       for (const k of Object.keys(mask)) filterMask[k] = mask[k];
+    },
+
+    setVisibleNodeCount(n) {
+      timelineCutoff = clamp(n, 1, TOTAL_NODES);
+      timelineVisibleSet.clear();
+      for (let i = 0; i < timelineCutoff; i++) {
+        timelineVisibleSet.add(nodeRevealOrder[i]);
+      }
+      timelineVisibleSet.add(USER_IDX); // always keep user node visible
+      // Update edge hide attribute: hide edges where either endpoint is hidden
+      for (let c = 0; c < connections.length; c++) {
+        const [ni, nj] = connections[c];
+        const hide = (!timelineVisibleSet.has(ni) || !timelineVisibleSet.has(nj)) ? 1.0 : 0.0;
+        const base = c * SEGS * 2;
+        for (let v = 0; v < SEGS * 2; v++) lineHideArr[base + v] = hide;
+      }
+      lineGeom.attributes.aHideEdge.needsUpdate = true;
     },
 
     getGraphData() {

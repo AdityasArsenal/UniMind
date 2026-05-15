@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import OnboardingPage from './pages/OnboardingPage';
 import AgenticWebPage from './pages/AgenticWebPage';
+import CommunityPage from './pages/CommunityPage';
 
 function TransitionBridge({ phase }) {
   return (
@@ -71,7 +72,7 @@ function TransitionBridge({ phase }) {
 }
 
 export default function App() {
-  // page: 'onboarding' | 'transitioning' | 'agentic'
+  // page: 'onboarding' | 'transitioning' | 'agentic' | 'community'
   const [page, setPage] = useState('onboarding');
   // bridgePhase: 'idle' | 'shrink-in' | 'shrink-out' | 'hold'
   const [bridgePhase, setBridgePhase] = useState('idle');
@@ -119,7 +120,26 @@ export default function App() {
             transition={{ duration: 0.5, delay: 0.1 }}
             style={{ position: 'absolute', inset: 0 }}
           >
-            <AgenticWebPage userName={userName} />
+            <AgenticWebPage
+              userName={userName}
+              onNavigateCommunity={() => setPage('community')}
+            />
+          </motion.div>
+        )}
+
+        {page === 'community' && (
+          <motion.div
+            key="community"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.5 }}
+            style={{ position: 'absolute', inset: 0 }}
+          >
+            <CommunityPage
+              userName={userName}
+              onBack={() => setPage('agentic')}
+            />
           </motion.div>
         )}
       </AnimatePresence>

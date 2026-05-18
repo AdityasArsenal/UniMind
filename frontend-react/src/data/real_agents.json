@@ -1,0 +1,170 @@
+[
+  {
+    "name": "SUDEEP",
+    "fullName": "Sudeep Aryan · Founder",
+    "type": 2,
+    "icon": "🧠",
+    "bio": "Building UniMind — the first AI that reasons about your future using your past.",
+    "score": 9842
+  },
+  {
+    "name": "RAHUL",
+    "fullName": "Rahul Kumar · Software Engineer",
+    "type": 2,
+    "icon": "⚡",
+    "bio": "Full-stack engineer. Specializes in distributed systems and cloud infra.",
+    "score": 8700
+  },
+  {
+    "name": "ANANYA",
+    "fullName": "Ananya Sharma · Product Manager",
+    "type": 2,
+    "icon": "🔮",
+    "bio": "0→1 product builder. Shipped 3 features used by 1M+ users.",
+    "score": 8200
+  },
+  {
+    "name": "KARAN",
+    "fullName": "Karan Mehta · Founder",
+    "type": 2,
+    "icon": "🌌",
+    "bio": "Serial entrepreneur, 2 startups. Maps the chaos of early-stage building.",
+    "score": 7900
+  },
+  {
+    "name": "PRIYA",
+    "fullName": "Priya Singh · AI Researcher",
+    "type": 2,
+    "icon": "🧬",
+    "bio": "ML researcher at IIT. Decodes patterns in career paths using LLMs.",
+    "score": 7400
+  },
+  {
+    "name": "ARJUN",
+    "fullName": "Arjun Nair · Data Scientist",
+    "type": 2,
+    "icon": "🔬",
+    "bio": "Quantifies uncertainty in life decisions. Makes chaos navigable.",
+    "score": 6900
+  },
+  {
+    "name": "MEERA",
+    "fullName": "Meera Pillai · UX Designer",
+    "type": 2,
+    "icon": "💎",
+    "bio": "Crafts clarity from ambiguity. Designed for 500K+ users.",
+    "score": 6400
+  },
+  {
+    "name": "VIVEK",
+    "fullName": "Vivek Reddy · Growth Lead",
+    "type": 2,
+    "icon": "🌀",
+    "bio": "Growth oracle. Identified 7,000+ divergence points in startup paths.",
+    "score": 5900
+  },
+  {
+    "name": "ISHAAN",
+    "fullName": "Ishaan Bose · Finance",
+    "type": 1,
+    "icon": "🌟",
+    "bio": "Quant finance specialist. Bridges risk models and real-world decisions.",
+    "score": 4800
+  },
+  {
+    "name": "TANYA",
+    "fullName": "Tanya Gupta · Marketing",
+    "type": 1,
+    "icon": "💡",
+    "bio": "Brand builder. Turns ideas into movements. Community-first mindset.",
+    "score": 4200
+  },
+  {
+    "name": "SIDDH",
+    "fullName": "Siddharth Joshi · Consultant",
+    "type": 1,
+    "icon": "🎯",
+    "bio": "Strategy consultant. Recursive thinker who finds shortcuts in life mazes.",
+    "score": 3700
+  },
+  {
+    "name": "NEHA",
+    "fullName": "Neha Kapoor · HR",
+    "type": 1,
+    "icon": "🌊",
+    "bio": "People-first leader. Specializes in career-pivot crossroads.",
+    "score": 3200
+  },
+  {
+    "name": "ROHAN",
+    "fullName": "Rohan Das · Developer",
+    "type": 1,
+    "icon": "🌿",
+    "bio": "Open-source contributor. Root system of every team he joins.",
+    "score": 2800
+  },
+  {
+    "name": "AISHA",
+    "fullName": "Aisha Khan · Content",
+    "type": 1,
+    "icon": "🎪",
+    "bio": "Storyteller. Turns technical journeys into narratives people follow.",
+    "score": 2400
+  },
+  {
+    "name": "DEVAM",
+    "fullName": "Devam Shah · Operations",
+    "type": 0,
+    "icon": "✨",
+    "bio": "Systems builder. Thrives in operational complexity and scale.",
+    "score": 1900
+  },
+  {
+    "name": "PARUL",
+    "fullName": "Parul Agarwal · Student",
+    "type": 0,
+    "icon": "🌱",
+    "bio": "Incoming CS grad student. Mapping out her first career moves.",
+    "score": 1400
+  },
+  {
+    "name": "VINAY",
+    "fullName": "Vinay · Student",
+    "type": 0,
+    "icon": "✨",
+    "bio": "Engineering student exploring AI and life simulations. Early adopter.",
+    "score": 1250
+  },
+  {
+    "name": "MASTH",
+    "fullName": "Masthan · Student",
+    "type": 0,
+    "icon": "🌱",
+    "bio": "CS undergrad figuring out the right career path. Curious mind.",
+    "score": 1180
+  },
+  {
+    "name": "PRABH",
+    "fullName": "Prabha · Student",
+    "type": 0,
+    "icon": "◈",
+    "bio": "Final-year student navigating the gap between college and real world.",
+    "score": 1100
+  },
+  {
+    "name": "RAHUL",
+    "fullName": "Rahul · Student",
+    "type": 0,
+    "icon": "▸",
+    "bio": "Tech student building his first projects and charting his own path.",
+    "score": 1020
+  },
+  {
+    "name": "PRAD",
+    "fullName": "Pradeep · Student",
+    "type": 0,
+    "icon": "◦",
+    "bio": "Student at the crossroads — exploring startups, research, and more.",
+    "score": 940
+  }
+]

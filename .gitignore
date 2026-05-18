@@ -1,0 +1,8 @@
+backend-python/.env
+backend-python/*.db
+backend-python/__pycache__/
+backend-python/**/__pycache__/
+backend-python/*.pyc
+backend-python/.venv/
+frontend-react/node_modules/
+frontend-react/dist/

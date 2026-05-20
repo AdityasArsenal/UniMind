@@ -48,6 +48,8 @@ export const searchAgents = (q) =>
 // ── Posts ─────────────────────────────────────────────────────────────────────
 export const getPosts = () => request('GET', '/api/posts');
 
+export const getTrendingTags = () => request('GET', '/api/posts/trending');
+
 export const createPost = (text, tag) =>
   request('POST', '/api/posts', { text, tag });
 
@@ -72,6 +74,29 @@ export const sendChatMessage = (content) =>
   request('POST', '/api/chatbot/message', { content });
 
 export const getChatHistory = () => request('GET', '/api/chatbot/history');
+
+export const clearChatHistory = () => request('DELETE', '/api/chatbot/history');
+
+export const deleteChatMessage = (id) => request('DELETE', `/api/chatbot/history/${id}`);
+
+export const enhanceContent = (content) =>
+  request('POST', '/api/chatbot/enhance', { content });
+
+export const uploadFile = async (file) => {
+  const token = localStorage.getItem('unimind_token');
+  const form = new FormData();
+  form.append('file', file);
+  const res = await fetch(`${BASE}/api/chatbot/upload`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: form,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: 'Upload failed' }));
+    throw new Error(err.detail || 'Upload failed');
+  }
+  return res.json();
+};
 
 export const saveKnowledge = (content, category) =>
   request('POST', '/api/chatbot/knowledge', { content, category });

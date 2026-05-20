@@ -1,13 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import OnboardingPage from './pages/OnboardingPage';
-import AgenticWebPage from './pages/AgenticWebPage';
-import CommunityPage from './pages/CommunityPage';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
-import ChatbotPage from './pages/ChatbotPage';
-import TimelinePage from './pages/TimelinePage';
 import { getMe, saveOnboarding } from './lib/api';
+
+const OnboardingPage = lazy(() => import('./pages/OnboardingPage'));
+const ChatbotPage    = lazy(() => import('./pages/ChatbotPage'));
+const AgenticWebPage = lazy(() => import('./pages/AgenticWebPage'));
+const CommunityPage  = lazy(() => import('./pages/CommunityPage'));
+const TimelinePage   = lazy(() => import('./pages/TimelinePage'));
+
+function PageLoader() {
+  return (
+    <div style={{ position: 'absolute', inset: 0, background: '#02030A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: 32, height: 32, borderRadius: '50%', border: '2px solid rgba(123,97,255,0.2)', borderTopColor: '#7B61FF', animation: 'spin 0.7s linear infinite' }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
 
 function TransitionBridge({ phase }) {
   return (
@@ -74,40 +84,25 @@ function TransitionBridge({ phase }) {
 
 export default function App() {
   // page: 'login' | 'signup' | 'chatbot' | 'onboarding' | 'transitioning' | 'agentic' | 'community' | 'timeline'
-  const [page, setPage] = useState('login');
+  // Auth skipped — start directly at onboarding
+  const [page, setPage] = useState('onboarding');
   const [bridgePhase, setBridgePhase] = useState('idle');
   const [isExiting, setIsExiting] = useState(false);
-  const [userName, setUserName] = useState('');
+  const [userName, setUserName] = useState('USER');
   const [authUser, setAuthUser] = useState(null);
   const [simulationData, setSimulationData] = useState(null);
   const [simulationKnowledgeCount, setSimulationKnowledgeCount] = useState(null);
   // Where chatbot should return after completion (onboarding for new users, agentic for returning)
   const [chatbotCompleteTarget, setChatbotCompleteTarget] = useState('onboarding');
 
-  // Restore session from localStorage on mount
-  useEffect(() => {
-    const token = localStorage.getItem('unimind_token');
-    const savedName = localStorage.getItem('unimind_name');
-    if (token && savedName) {
-      setUserName(savedName.toUpperCase());
-      getMe()
-        .then(user => {
-          setAuthUser(user);
-          setPage('onboarding');
-        })
-        .catch(() => {
-          localStorage.removeItem('unimind_token');
-          localStorage.removeItem('unimind_name');
-          localStorage.removeItem('unimind_user_id');
-          setPage('login');
-        });
-    }
-  }, []);
+  // Auth skipped — no session restore needed
+  useEffect(() => {}, []);
 
+  // Auth skipped — these handlers are unused but kept for future re-enable
   function handleLoginSuccess(user) {
     setAuthUser(user);
     setUserName(user.name.toUpperCase());
-    setPage('onboarding');
+    setPage(user.onboarding_complete ? 'agentic' : 'onboarding');
   }
 
   function handleSignupSuccess(user) {
@@ -139,37 +134,18 @@ export default function App() {
   return (
     <div style={{ width: '100vw', height: '100vh', overflow: 'hidden', background: '#02030A' }}>
       <AnimatePresence>
+        {/* Auth skipped — login/signup pages commented out
         {page === 'login' && (
-          <motion.div
-            key="login"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.4 }}
-            style={{ position: 'absolute', inset: 0 }}
-          >
-            <LoginPage
-              onLoginSuccess={handleLoginSuccess}
-              onGoSignup={() => setPage('signup')}
-            />
+          <motion.div key="login" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }} style={{ position: 'absolute', inset: 0 }}>
+            <LoginPage onLoginSuccess={handleLoginSuccess} onGoSignup={() => setPage('signup')} />
           </motion.div>
         )}
-
         {page === 'signup' && (
-          <motion.div
-            key="signup"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.4 }}
-            style={{ position: 'absolute', inset: 0 }}
-          >
-            <SignupPage
-              onSignupSuccess={handleSignupSuccess}
-              onGoLogin={() => setPage('login')}
-            />
+          <motion.div key="signup" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }} style={{ position: 'absolute', inset: 0 }}>
+            <SignupPage onSignupSuccess={handleSignupSuccess} onGoLogin={() => setPage('login')} />
           </motion.div>
         )}
+        */}
 
         {page === 'chatbot' && (
           <motion.div
@@ -180,11 +156,13 @@ export default function App() {
             transition={{ duration: 0.4 }}
             style={{ position: 'absolute', inset: 0 }}
           >
-            <ChatbotPage
-              userName={userName}
-              onComplete={() => setPage(chatbotCompleteTarget)}
-              onSkip={() => setPage(chatbotCompleteTarget === 'onboarding' ? 'agentic' : chatbotCompleteTarget)}
-            />
+            <Suspense fallback={<PageLoader />}>
+              <ChatbotPage
+                userName={userName}
+                onComplete={() => setPage(chatbotCompleteTarget)}
+                onSkip={() => setPage(chatbotCompleteTarget === 'onboarding' ? 'agentic' : chatbotCompleteTarget)}
+              />
+            </Suspense>
           </motion.div>
         )}
 
@@ -197,7 +175,9 @@ export default function App() {
             transition={{ duration: 0.4, ease: 'easeIn' }}
             style={{ position: 'absolute', inset: 0 }}
           >
-            <OnboardingPage onEnter={handleEnter} />
+            <Suspense fallback={<PageLoader />}>
+              <OnboardingPage onEnter={handleEnter} />
+            </Suspense>
           </motion.div>
         )}
 
@@ -209,16 +189,18 @@ export default function App() {
             transition={{ duration: 0.5, delay: 0.1 }}
             style={{ position: 'absolute', inset: 0 }}
           >
-            <AgenticWebPage
-              userName={userName}
-              onNavigateCommunity={() => setPage('community')}
-              onNavigateChatbot={() => setPage('chatbot')}
-              onNavigateTimeline={(data, kCount) => {
-                setSimulationData(data || null);
-                setSimulationKnowledgeCount(kCount ?? null);
-                setPage('timeline');
-              }}
-            />
+            <Suspense fallback={<PageLoader />}>
+              <AgenticWebPage
+                userName={userName}
+                onNavigateCommunity={() => setPage('community')}
+                onNavigateChatbot={() => setPage('chatbot')}
+                onNavigateTimeline={(data, kCount) => {
+                  setSimulationData(data || null);
+                  setSimulationKnowledgeCount(kCount ?? null);
+                  setPage('timeline');
+                }}
+              />
+            </Suspense>
           </motion.div>
         )}
 
@@ -231,15 +213,17 @@ export default function App() {
             transition={{ duration: 0.5 }}
             style={{ position: 'absolute', inset: 0 }}
           >
-            <TimelinePage
-              simulationData={simulationData}
-              knowledgeCount={simulationKnowledgeCount}
-              onBack={() => setPage('agentic')}
-              onChatbot={() => {
-                setChatbotCompleteTarget('agentic');
-                setPage('chatbot');
-              }}
-            />
+            <Suspense fallback={<PageLoader />}>
+              <TimelinePage
+                simulationData={simulationData}
+                knowledgeCount={simulationKnowledgeCount}
+                onBack={() => setPage('agentic')}
+                onChatbot={() => {
+                  setChatbotCompleteTarget('agentic');
+                  setPage('chatbot');
+                }}
+              />
+            </Suspense>
           </motion.div>
         )}
 
@@ -252,10 +236,12 @@ export default function App() {
             transition={{ duration: 0.5 }}
             style={{ position: 'absolute', inset: 0 }}
           >
-            <CommunityPage
-              userName={userName}
-              onBack={() => setPage('agentic')}
-            />
+            <Suspense fallback={<PageLoader />}>
+              <CommunityPage
+                userName={userName}
+                onBack={() => setPage('agentic')}
+              />
+            </Suspense>
           </motion.div>
         )}
       </AnimatePresence>

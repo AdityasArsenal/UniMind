@@ -7,6 +7,7 @@ class ChatMessageIn(BaseModel):
 
 
 class ChatMessageOut(BaseModel):
+    id: Optional[str] = None
     role: str
     content: str
     created_at: str
@@ -33,3 +34,17 @@ class ProfileUpdate(BaseModel):
 class ChatResponse(BaseModel):
     message: ChatMessageOut
     profile_update: Optional[ProfileUpdate] = None
+
+
+class EnhanceRequest(BaseModel):
+    content: str
+
+
+class EnhanceResponse(BaseModel):
+    enhanced: str
+
+
+class UploadResponse(BaseModel):
+    extracted_text: str
+    file_type: str
+    file_name: str

@@ -21,3 +21,8 @@ class CreatePostRequest(BaseModel):
 
 class ReactRequest(BaseModel):
     emoji: str
+
+
+class TrendingTagOut(BaseModel):
+    tag: str
+    count: int

@@ -56,6 +56,13 @@ body {
   letter-spacing: -0.01em;
 }
 
+@keyframes css-spin {
+  to { transform: rotate(360deg); }
+}
+.css-spin {
+  animation: css-spin 8s linear infinite;
+}
+
 @keyframes drift {
   0%   { transform: translate3d(0,0,0); opacity: var(--o, 0.25); }
   50%  { transform: translate3d(8px,-14px,0); opacity: 0.55; }

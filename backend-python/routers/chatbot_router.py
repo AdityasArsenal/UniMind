@@ -2,19 +2,21 @@ import uuid
 import json
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 
 from db import get_db
 from auth import get_current_user
 from models.chat import (
     ChatMessageIn, ChatMessageOut, KnowledgeChunkIn, KnowledgeChunkOut,
-    ChatResponse, ProfileUpdate,
+    ChatResponse, ProfileUpdate, EnhanceRequest, EnhanceResponse, UploadResponse,
 )
 from services.chatbot_service import (
     OPENING_MESSAGE,
     build_system_prompt,
     extract_knowledge,
     build_agent_bio,
+    enhance_content,
+    extract_text_from_file,
 )
 from services.azure_openai import chat_complete
 
@@ -23,11 +25,11 @@ router = APIRouter()
 
 async def _get_history(db, user_id: str) -> list[dict]:
     cursor = await db.execute(
-        "SELECT role, content FROM chat_messages WHERE user_id=? ORDER BY created_at ASC LIMIT 40",
+        "SELECT id, role, content FROM chat_messages WHERE user_id=? ORDER BY created_at ASC LIMIT 40",
         (user_id,),
     )
     rows = await cursor.fetchall()
-    return [{"role": r["role"], "content": r["content"]} for r in rows]
+    return [{"id": r["id"], "role": r["role"], "content": r["content"]} for r in rows]
 
 
 async def _get_chunks(db, user_id: str) -> list[dict]:
@@ -39,14 +41,14 @@ async def _get_chunks(db, user_id: str) -> list[dict]:
     return [dict(r) for r in rows]
 
 
-async def _save_message(db, user_id: str, role: str, content: str) -> str:
+async def _save_message(db, user_id: str, role: str, content: str) -> tuple[str, str]:
     msg_id = str(uuid.uuid4())
     created_at = datetime.now(timezone.utc).isoformat()
     await db.execute(
         "INSERT INTO chat_messages (id, user_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)",
         (msg_id, user_id, role, content, created_at),
     )
-    return created_at
+    return msg_id, created_at
 
 
 async def _save_chunk(db, user_id: str, content: str, category: str) -> None:
@@ -69,21 +71,21 @@ async def send_message(
 
     history = await _get_history(db, user_id)
 
-    # First-ever message: return canned greeting (idempotent — only save if none exists)
+    # First-ever message: return canned greeting (idempotent)
     if not history:
-        # Check again with a fresh query to guard against concurrent double-init requests
         cursor2 = await db.execute(
             "SELECT id FROM chat_messages WHERE user_id=? LIMIT 1", (user_id,)
         )
         already_exists = await cursor2.fetchone()
         if not already_exists:
-            created_at = await _save_message(db, user_id, "assistant", OPENING_MESSAGE)
+            msg_id, created_at = await _save_message(db, user_id, "assistant", OPENING_MESSAGE)
             await db.commit()
         else:
-            # Concurrent request already saved the greeting — just return it
+            msg_id = None
             created_at = datetime.now(timezone.utc).isoformat()
         return ChatResponse(
             message=ChatMessageOut(
+                id=msg_id,
                 role="assistant",
                 content=OPENING_MESSAGE,
                 created_at=created_at,
@@ -92,24 +94,24 @@ async def send_message(
         )
 
     # Save user message
-    user_created_at = await _save_message(db, user_id, "user", payload.content)
+    user_msg_id, user_created_at = await _save_message(db, user_id, "user", payload.content)
 
     # Fetch knowledge chunks for context
     chunks = await _get_chunks(db, user_id)
 
-    # Build messages for LLM
+    # Build messages for LLM (strip ids for API call)
     system_content = build_system_prompt(user_name, chunks)
     messages = [{"role": "system", "content": system_content}]
-    messages.extend(history)
+    messages.extend([{"role": h["role"], "content": h["content"]} for h in history])
     messages.append({"role": "user", "content": payload.content})
 
     # LLM response
     assistant_reply = await chat_complete(messages, temperature=0.8)
 
     # Save assistant response
-    assistant_created_at = await _save_message(db, user_id, "assistant", assistant_reply)
+    asst_id, asst_created_at = await _save_message(db, user_id, "assistant", assistant_reply)
 
-    # Knowledge extraction (non-blocking)
+    # Knowledge extraction
     profile_update = None
     try:
         extracted = await extract_knowledge(payload.content)
@@ -134,9 +136,10 @@ async def send_message(
 
     return ChatResponse(
         message=ChatMessageOut(
+            id=asst_id,
             role="assistant",
             content=assistant_reply,
-            created_at=assistant_created_at,
+            created_at=asst_created_at,
         ),
         profile_update=profile_update,
     )
@@ -148,11 +151,79 @@ async def get_history(
     db=Depends(get_db),
 ):
     cursor = await db.execute(
-        "SELECT role, content, created_at FROM chat_messages WHERE user_id=? ORDER BY created_at ASC",
+        "SELECT id, role, content, created_at FROM chat_messages WHERE user_id=? ORDER BY created_at ASC",
         (current_user["id"],),
     )
     rows = await cursor.fetchall()
-    return [ChatMessageOut(role=r["role"], content=r["content"], created_at=r["created_at"]) for r in rows]
+    return [
+        ChatMessageOut(id=r["id"], role=r["role"], content=r["content"], created_at=r["created_at"])
+        for r in rows
+    ]
+
+
+@router.delete("/history")
+async def clear_history(
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    await db.execute(
+        "DELETE FROM chat_messages WHERE user_id=?", (current_user["id"],)
+    )
+    await db.commit()
+    return {"deleted": True}
+
+
+@router.delete("/history/{message_id}")
+async def delete_message(
+    message_id: str,
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    cursor = await db.execute(
+        "SELECT id FROM chat_messages WHERE id=? AND user_id=?",
+        (message_id, current_user["id"]),
+    )
+    row = await cursor.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Message not found")
+    await db.execute("DELETE FROM chat_messages WHERE id=?", (message_id,))
+    await db.commit()
+    return {"deleted": True}
+
+
+@router.post("/enhance", response_model=EnhanceResponse)
+async def enhance_message(
+    payload: EnhanceRequest,
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    chunks = await _get_chunks(db, current_user["id"])
+    result = await enhance_content(payload.content, current_user["name"], chunks)
+    return EnhanceResponse(enhanced=result)
+
+
+@router.post("/upload", response_model=UploadResponse)
+async def upload_file(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+):
+    allowed = {
+        "application/pdf",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "text/plain",
+        "image/png", "image/jpeg", "image/webp", "image/gif",
+    }
+    content_type = file.content_type or ""
+    if content_type not in allowed:
+        raise HTTPException(status_code=400, detail=f"Unsupported file type: {content_type}")
+
+    data = await file.read()
+    extracted, file_type = await extract_text_from_file(data, content_type, file.filename or "")
+    return UploadResponse(
+        extracted_text=extracted,
+        file_type=file_type,
+        file_name=file.filename or "upload",
+    )
 
 
 @router.post("/knowledge", response_model=KnowledgeChunkOut)

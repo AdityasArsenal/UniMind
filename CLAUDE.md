@@ -118,13 +118,17 @@ All endpoints live in `backend-python/routers/`. See `docs/api-reference.md` for
 | GET /api/network/growth | ✅ |
 | GET /api/achievements/{user_id} | ✅ |
 | POST /api/chatbot/message | ✅ (Azure OpenAI) |
-| GET /api/chatbot/history | ✅ |
+| GET /api/chatbot/history | ✅ (returns ids) |
+| DELETE /api/chatbot/history | ✅ (clear all) |
+| DELETE /api/chatbot/history/{id} | ✅ (delete one) |
+| POST /api/chatbot/enhance | ✅ (AI expands brief input) |
+| POST /api/chatbot/upload | ✅ (PDF/DOCX/image/txt extraction) |
 | POST /api/chatbot/knowledge | ✅ |
 
 #### Backend Services
 - `services/agent_seed.py` — Python port of frontend's `xorshift32` RNG. Builds 1,401 agents at startup in memory. **Validated: ARIA=9842, NOX=9120, VEDA=8633.**
 - `services/azure_openai.py` — `AsyncAzureOpenAI` wrapper. Two functions: `chat_complete()` and `simulate_life()`.
-- `services/chatbot_service.py` — System prompt builder, knowledge extraction, agent bio rebuild.
+- `services/chatbot_service.py` — System prompt builder, knowledge extraction, agent bio rebuild. Also: `enhance_content()` and `extract_text_from_file()` (PDF/DOCX/image/text).
 
 #### Database (SQLite — `backend-python/unimind.db`)
 Tables: `users`, `knowledge_chunks`, `chat_messages`, `posts`, `reactions`, `achievements`
@@ -274,3 +278,54 @@ The `OPENAI_API_KEY` is in `.env`. Never log it or commit it.
 
 **Frontend build:** 344 modules, 0 errors.
 **Backend syntax:** Clean.
+
+### 2026-05-18 — CommunityPage Next-Level Upgrade + Dynamic App Data
+
+**Problem solved:** CommunityPage had hardcoded profile stats, hardcoded badge data, no trending/discovery features, and basic post cards. The entire right sidebar and profile were static.
+
+**Backend changes:**
+- **models/post.py** — Added `TrendingTagOut(tag, count)` Pydantic model.
+- **models/user.py** — Added `posts_count: int = 0` field to `UserProfile`.
+- **routers/users_router.py** — `get_me` now accepts `db=Depends(get_db)` and runs a COUNT query on `posts WHERE user_id=?` to return real `posts_count`. Does NOT use `async with db:`.
+- **routers/posts_router.py** — Added `GET /api/posts/trending` route (inserted before `POST /api/posts` to avoid route conflict). SQL: `GROUP BY tag ORDER BY count DESC LIMIT 6`. No auth required.
+
+**Frontend changes:**
+- **api.js** — Added `getTrendingTags()` export for `GET /api/posts/trending`.
+- **CommunityPage.jsx** — Full rewrite. New components:
+  - `AnimatedNumber` — springs from 0 to real value using `useMotionValue` + `useSpring`.
+  - `ProfileCard` — now fetches `getMe()` + `getAchievements()` in parallel on mount. Shows real score, real posts_count, real earned badges. Rotating gradient ring avatar. Loading skeleton while fetching.
+  - `FeaturedStoriesBar` — horizontal infinite-scroll row of top 12 agents from leaderboard (duplicated list + `useAnimationControls` loop). Gradient fade masks on edges.
+  - `SortSelector` — replaces tabs with Hot/New/Top/Rising. Animated sliding pill via Framer Motion `layoutId="sort-pill"`.
+  - `PostCard` — gradient left glow border on hover, HOT 🔥 badge (>300 reactions), trending ✦ sparkle (>150), expand/collapse for long posts (>200 chars), reaction burst animation (scale 1.35 + brightness flash), gradient avatar circles, reply count.
+  - `PostComposer` — 280-char counter (red when <30 left), 9 tags, Broadcast button glow-pulse animation.
+  - `TrendingSection` — fetches `getTrendingTags()`, animated bar chart per tag. Falls back to static data.
+  - `SuggestedConnections` — fetches `getLeaderboard()`, shows top 4 agents with Connect button.
+  - `RightSidebar` — scrollable wrapper for LiveFeed + TrendingSection + SuggestedConnections.
+  - `LiveFeed` — enhanced with `getEventMeta()` that maps event text to icon + color (◎/⚡/🧬/📡/🌐).
+  - Sort logic (`sortedPosts` useMemo): Hot=by total reactions, New=API order, Top=by score, Rising=recent posts (s/m ago) by reactions.
+  - Post stagger: `motion.div` container with `staggerChildren: 0.06` wraps `AnimatePresence`.
+
+**Frontend build:** 344 modules, 0 errors.
+
+### 2026-05-19 — ChatbotPage Major Upgrade (File Upload + Content Enhancer + History Management)
+
+**Changes made:**
+
+**Backend:**
+- **requirements.txt** — Added `pypdf==4.3.1`, `python-docx==1.1.2`, `pillow==10.4.0`. All already present in Anaconda env.
+- **models/chat.py** — Added `id: Optional[str]` to `ChatMessageOut`; added `EnhanceRequest`, `EnhanceResponse`, `UploadResponse` Pydantic models.
+- **routers/chatbot_router.py** — `_save_message()` now returns `(msg_id, created_at)` tuple. All `ChatMessageOut` responses include `id`. Added 4 new endpoints:
+  - `DELETE /api/chatbot/history` — clears all chat messages for user, re-seeds opening message
+  - `DELETE /api/chatbot/history/{message_id}` — deletes a specific message (validates ownership)
+  - `POST /api/chatbot/enhance` — calls `enhance_content()` with user context, returns expanded text
+  - `POST /api/chatbot/upload` — accepts PDF/DOCX/TXT/image, calls `extract_text_from_file()`, returns extracted text
+- **services/chatbot_service.py** — Added `enhance_content(brief, user_name, chunks)`: expands a short user message into a rich 2–4 sentence first-person statement using LLM + the user's existing knowledge context. Added `extract_text_from_file(data, content_type, filename)`: handles PDF (via `pypdf`), DOCX (via `python-docx`), plain text (UTF-8 decode), and images (via Azure OpenAI vision / base64).
+
+**Frontend:**
+- **api.js** — Added: `clearChatHistory()`, `deleteChatMessage(id)`, `enhanceContent(content)`, `uploadFile(file)` (multipart, no Content-Type override).
+- **ChatbotPage.jsx** — Full redesign:
+  - **File upload**: paperclip button opens hidden `<input type="file">` (PDF/DOCX/TXT/PNG/JPEG/WEBP/GIF). Extracted text stored as `pendingFile`, shown as chip above input. On send, prepended to message. Spinner during upload.
+  - **Content Enhancer**: ✦ button calls `/enhance`, shows `EnhancePanel` with original brief vs. AI-expanded version. User edits inline, then "Send Enhanced" or "Send Original".
+  - **Per-message delete**: hover any bubble to reveal red × button. Calls `DELETE /api/chatbot/history/{id}`.
+  - **Clear all history**: button in ProfilePanel footer with confirmation step.
+  - **Message IDs**: all messages carry `id` from backend for delete operations.

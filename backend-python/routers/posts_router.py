@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from db import get_db
 from auth import get_current_user
-from models.post import PostOut, CreatePostRequest, ReactRequest
+from models.post import PostOut, CreatePostRequest, ReactRequest, TrendingTagOut
 
 router = APIRouter()
 
@@ -54,10 +54,44 @@ async def get_posts(db=Depends(get_db)):
         "SELECT * FROM posts ORDER BY created_at DESC LIMIT 50"
     )
     rows = await cursor.fetchall()
-    posts = []
-    for row in rows:
-        posts.append(await _row_to_post(db, dict(row)))
-    return posts
+    if not rows:
+        return []
+
+    post_ids = [row["id"] for row in rows]
+    placeholders = ",".join("?" * len(post_ids))
+    rcursor = await db.execute(
+        f"SELECT post_id, emoji, count FROM reactions WHERE post_id IN ({placeholders})",
+        post_ids,
+    )
+    reaction_rows = await rcursor.fetchall()
+
+    reactions_map: dict[str, dict] = {}
+    for r in reaction_rows:
+        reactions_map.setdefault(r["post_id"], {})[r["emoji"]] = r["count"]
+
+    return [
+        PostOut(
+            id=row["id"],
+            agent=row["agent_name"],
+            icon=row["agent_icon"],
+            type=row["agent_type"],
+            score=row["agent_score"],
+            content=row["content"],
+            tag=row["tag"],
+            time=_format_time(row["created_at"]),
+            reactions=reactions_map.get(row["id"], {}),
+        )
+        for row in rows
+    ]
+
+
+@router.get("/posts/trending", response_model=list[TrendingTagOut])
+async def get_trending_tags(db=Depends(get_db)):
+    cursor = await db.execute(
+        "SELECT tag, COUNT(*) as count FROM posts GROUP BY tag ORDER BY count DESC LIMIT 6"
+    )
+    rows = await cursor.fetchall()
+    return [TrendingTagOut(tag=r["tag"], count=r["count"]) for r in rows]
 
 
 @router.post("/posts", response_model=PostOut)

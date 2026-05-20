@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends
 
 from db import get_db
 from auth import get_current_user
+
 from models.user import UserProfile, OnboardingPayload
 
 router = APIRouter()
@@ -30,8 +31,17 @@ def _row_to_profile(user: dict) -> UserProfile:
 
 
 @router.get("/me", response_model=UserProfile)
-async def get_me(current_user: dict = Depends(get_current_user)):
-    return _row_to_profile(current_user)
+async def get_me(
+    current_user: dict = Depends(get_current_user),
+    db=Depends(get_db),
+):
+    profile = _row_to_profile(current_user)
+    cursor = await db.execute(
+        "SELECT COUNT(*) as cnt FROM posts WHERE user_id = ?",
+        (current_user["id"],),
+    )
+    row = await cursor.fetchone()
+    return UserProfile(**profile.dict(), posts_count=row["cnt"] if row else 0)
 
 
 @router.post("/me/onboarding", response_model=UserProfile)

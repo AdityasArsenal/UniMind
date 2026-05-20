@@ -37,3 +37,4 @@ class UserProfile(BaseModel):
     agent_skills: List[str] = []
     agent_score: int = 100
     onboarding_complete: bool = False
+    posts_count: int = 0

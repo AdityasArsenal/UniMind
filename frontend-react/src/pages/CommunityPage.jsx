@@ -857,7 +857,7 @@ function RightSidebar({ leaderboardAgents }) {
 }
 
 // ---------- Main CommunityPage ----------
-export default function CommunityPage({ userName = '', onBack }) {
+export default function CommunityPage({ userName = '', onBack, onHome }) {
   const [posts, setPosts] = useState(INITIAL_POSTS);
   const [sort, setSort] = useState('New');
   const [achievement, setAchievement] = useState(null);
@@ -928,13 +928,13 @@ export default function CommunityPage({ userName = '', onBack }) {
   }, [posts, sort]);
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden bg-[#02030A] text-white">
+    <div className="relative w-screen h-screen overflow-hidden text-white" style={{ background: '#07091A' }}>
       {/* Background */}
       <div className="absolute inset-0 z-0 pointer-events-none" style={{
         background:
-          'radial-gradient(60% 50% at 18% 20%, rgba(11,18,32,0.85), transparent 70%),' +
-          'radial-gradient(55% 45% at 82% 82%, rgba(20,10,30,0.75), transparent 70%),' +
-          '#02030A',
+          'radial-gradient(60% 50% at 18% 20%, rgba(0,30,60,0.5), transparent 70%),' +
+          'radial-gradient(55% 45% at 82% 82%, rgba(30,10,50,0.5), transparent 70%),' +
+          '#07091A',
       }} />
 
       {/* Vignette */}
@@ -957,7 +957,9 @@ export default function CommunityPage({ userName = '', onBack }) {
             }} />
             <div className="absolute inset-0 rounded-md" style={{ boxShadow: '0 0 24px rgba(123,97,255,0.55)' }} />
           </div>
-          <div className="text-white text-[14px] tracking-[0.18em] font-medium">UNIMIND</div>
+          <button onClick={onHome} className="flex items-center gap-2 group" style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+            <span className="text-white text-[14px] tracking-[0.18em] font-medium group-hover:opacity-75 transition-opacity">UNIMIND</span>
+          </button>
           <div className="text-white/30 text-[12px] tracking-[0.18em]">/ COMMUNITY HUB</div>
         </div>
         <div className="flex items-center gap-4">

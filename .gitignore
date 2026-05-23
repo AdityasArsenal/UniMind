@@ -6,3 +6,4 @@ backend-python/*.pyc
 backend-python/.venv/
 frontend-react/node_modules/
 frontend-react/dist/
+docs

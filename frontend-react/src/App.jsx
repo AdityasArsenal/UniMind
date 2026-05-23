@@ -4,11 +4,12 @@ import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
 import { getMe, saveOnboarding } from './lib/api';
 
-const OnboardingPage = lazy(() => import('./pages/OnboardingPage'));
-const ChatbotPage    = lazy(() => import('./pages/ChatbotPage'));
-const AgenticWebPage = lazy(() => import('./pages/AgenticWebPage'));
-const CommunityPage  = lazy(() => import('./pages/CommunityPage'));
-const TimelinePage   = lazy(() => import('./pages/TimelinePage'));
+const OnboardingPage  = lazy(() => import('./pages/OnboardingPage'));
+const ChatbotPage     = lazy(() => import('./pages/ChatbotPage'));
+const AgenticWebPage  = lazy(() => import('./pages/AgenticWebPage'));
+const CommunityPage   = lazy(() => import('./pages/CommunityPage'));
+const TimelinePage    = lazy(() => import('./pages/TimelinePage'));
+const RunwayPage      = lazy(() => import('./pages/RunwayPage'));
 
 function PageLoader() {
   return (
@@ -83,7 +84,7 @@ function TransitionBridge({ phase }) {
 }
 
 export default function App() {
-  // page: 'login' | 'signup' | 'chatbot' | 'onboarding' | 'transitioning' | 'agentic' | 'community' | 'timeline'
+  // page: 'login' | 'signup' | 'chatbot' | 'onboarding' | 'transitioning' | 'agentic' | 'community' | 'timeline' | 'runway'
   // Auth skipped — start directly at onboarding
   const [page, setPage] = useState('onboarding');
   const [bridgePhase, setBridgePhase] = useState('idle');
@@ -161,6 +162,7 @@ export default function App() {
                 userName={userName}
                 onComplete={() => setPage(chatbotCompleteTarget)}
                 onSkip={() => setPage(chatbotCompleteTarget === 'onboarding' ? 'agentic' : chatbotCompleteTarget)}
+                onHome={() => setPage('agentic')}
               />
             </Suspense>
           </motion.div>
@@ -194,6 +196,7 @@ export default function App() {
                 userName={userName}
                 onNavigateCommunity={() => setPage('community')}
                 onNavigateChatbot={() => setPage('chatbot')}
+                onNavigateRunway={() => setPage('runway')}
                 onNavigateTimeline={(data, kCount) => {
                   setSimulationData(data || null);
                   setSimulationKnowledgeCount(kCount ?? null);
@@ -240,6 +243,26 @@ export default function App() {
               <CommunityPage
                 userName={userName}
                 onBack={() => setPage('agentic')}
+                onHome={() => setPage('agentic')}
+              />
+            </Suspense>
+          </motion.div>
+        )}
+
+        {page === 'runway' && (
+          <motion.div
+            key="runway"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.5 }}
+            style={{ position: 'absolute', inset: 0 }}
+          >
+            <Suspense fallback={<PageLoader />}>
+              <RunwayPage
+                userName={userName}
+                onBack={() => setPage('agentic')}
+                onHome={() => setPage('agentic')}
               />
             </Suspense>
           </motion.div>

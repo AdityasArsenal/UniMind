@@ -17,7 +17,7 @@ function WebSceneHost({ onReady }) {
 }
 
 // ---------- Top brand bar ----------
-function TopBar({ phase, simRunning, onCommunity, onChatbot }) {
+function TopBar({ phase, simRunning, onCommunity, onChatbot, onRunway }) {
   return (
     <div className="absolute top-0 inset-x-0 z-30 px-10 pt-7 flex items-center justify-between pointer-events-none">
       <div className="flex items-center gap-3">
@@ -32,18 +32,25 @@ function TopBar({ phase, simRunning, onCommunity, onChatbot }) {
         <div className="text-white/30 text-[12px] tracking-[0.18em]">/ AGENTIC WEB</div>
       </div>
       <div className="flex items-center gap-5 text-[11px] mono text-white/45 tracking-wider pointer-events-auto">
-        <span className="flex items-center gap-2">
-          <span className="relative inline-flex">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            <span className="absolute inset-0 w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping opacity-60" />
-          </span>
-          <span>NETWORK · LIVE</span>
-        </span>
         {simRunning && (
           <span className="hidden md:inline opacity-80">
             {`RUNNING SIMULATION · PHASE 0${phase}/04`}
           </span>
         )}
+        <motion.button
+          onClick={onRunway}
+          whileHover={{ scale: 1.06 }}
+          whileTap={{ scale: 0.96 }}
+          className="flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] tracking-[0.22em] uppercase transition-all"
+          style={{
+            background: 'linear-gradient(135deg, rgba(255,213,79,0.12), rgba(0,209,255,0.14))',
+            border: '1px solid rgba(255,213,79,0.32)',
+            color: 'rgba(255,255,255,0.85)',
+          }}
+        >
+          <span style={{ fontSize: 12 }}>💸</span>
+          <span>Runway</span>
+        </motion.button>
         <motion.button
           onClick={onChatbot}
           whileHover={{ scale: 1.06 }}
@@ -1133,7 +1140,7 @@ function DustOverlay() {
 }
 
 // ---------- Main ----------
-export default function AgenticWebPage({ userName = '', onNavigateCommunity, onNavigateChatbot, onNavigateTimeline }) {
+export default function AgenticWebPage({ userName = '', onNavigateCommunity, onNavigateChatbot, onNavigateTimeline, onNavigateRunway }) {
   const [scene, setScene] = useState(null);
   const [timeframe, setTimeframe] = useState('all');
   const [lbOpen, setLbOpen] = useState(false);
@@ -1293,7 +1300,7 @@ export default function AgenticWebPage({ userName = '', onNavigateCommunity, onN
       <WebSceneHost onReady={setScene} />
       <DustOverlay />
 
-      <TopBar phase={phase} simRunning={simRunning} onCommunity={onNavigateCommunity} onChatbot={onNavigateChatbot} />
+      <TopBar phase={phase} simRunning={simRunning} onCommunity={onNavigateCommunity} onChatbot={onNavigateChatbot} onRunway={onNavigateRunway} />
 
       <CoreLabel scenePos={coreScreen} dim={coreLabelDim} hidden={coreLabelHidden} />
       <CoreHover hovered={coreHovered && !simRunning} scenePos={coreScreen} mousePos={mousePos} />
